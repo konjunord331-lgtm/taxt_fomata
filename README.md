@@ -1,43 +1,62 @@
-## Overview
+# MEDIA7 LAB
 
-s9e\\TextFormatter is a text formatting library that supports BBCode, Markdown, HTML and other markup via plugins. The library is written in PHP, with a JavaScript port also available for client-side preview (see below.)
+Petit labo local qui passe réellement les URLs dans le **MediaPack s9e/TextFormatter par défaut** du repo `taxt_fomata`.
 
-[![Packagist Version](https://img.shields.io/packagist/v/s9e/text-formatter)](https://packagist.org/packages/s9e/text-formatter)
-[![Scrutinizer Quality Score](https://scrutinizer-ci.com/g/s9e/TextFormatter/badges/quality-score.png?s=3942dab3c410fb9ce02001e7446d1083fa91172c)](https://scrutinizer-ci.com/g/s9e/TextFormatter/)
-[![Code Coverage](https://scrutinizer-ci.com/g/s9e/TextFormatter/badges/coverage.png?b=master)](https://scrutinizer-ci.com/g/s9e/TextFormatter/?branch=master)
-[![Documentation](https://readthedocs.org/projects/s9etextformatter/badge/)](https://s9etextformatter.readthedocs.io/)
+## Providers testés
 
+- Prezi
+- CodePen
+- JSFiddle
+- Google Sheets
+- Falstad / CircuitJS
+- GitHub Gist
+- Medium
 
 ## Installation
 
-The best way to install s9e\\TextFormatter is via Composer. See [Installation](https://s9etextformatter.readthedocs.io/Getting_started/Installation/).
+Place simplement le dossier `media7_lab` directement dans la racine du repo :
 
-```bash
-composer require s9e/text-formatter
+```text
+taxt_fomata/
+├─ src/
+├─ composer.json
+└─ media7_lab/
+   ├─ index.php
+   ├─ start.bat
+   └─ README.md
 ```
 
+Sur Windows, double-clique ensuite sur `media7_lab/start.bat`.
 
-## Examples
+Adresse : `http://127.0.0.1:8080/`
 
-If you can only read one example, [read how to use a bundle](https://s9etextformatter.readthedocs.io/Getting_started/Using_predefined_bundles/).
+## Ce qui est réellement testé
 
-You can run the scripts directly from the [examples directory](https://github.com/s9e/TextFormatter/blob/master/docs/examples) and you will find in [the manual](https://s9etextformatter.readthedocs.io/) a description of each plugin as well as other examples.
+Le labo appelle :
 
+```php
+s9e\TextFormatter\Bundles\MediaPack::parse($input);
+s9e\TextFormatter\Bundles\MediaPack::render($xml, $params);
+```
 
-## Versioning
+Il ne réécrit pas les regex et ne construit pas lui-même les iframes.
 
-Versioning is meant to follow [Semantic Versioning](https://semver.org/). You can [read about API changes in the documentation](https://s9etextformatter.readthedocs.io/Internals/API_changes/).
+Le bundle MediaPack contient tous les providers s9e par défaut, mais le labo applique **avant le parser** une gate de domaine limitée aux 7 providers ci-dessus. Pour ces 7 domaines, les regex, captures et templates sont donc ceux du bundle compilé du repo.
 
+Le panneau de debug montre :
 
-## Online demo
+1. le host de l'URL;
+2. le provider attendu;
+3. le provider réellement détecté par s9e;
+4. les attributs capturés (`id`, `cct`, `ctz`, `oid`, etc.);
+5. le XML intermédiaire;
+6. le HTML final exact produit par le renderer;
+7. les `src` d'iframe finales;
+8. le rendu live.
 
-You can try the JavaScript version in this [BBCodes + other stuff demo](https://s9e.github.io/TextFormatter/demo.html), or this [Markdown + stuff (Fatdown) demo](https://s9e.github.io/TextFormatter/fatdown.html).
+## Notes
 
-
-## Development tools
-
-The following tools are used during development.
-
- - [phpunit/phpunit](https://phpunit.de/) 9.6.35 runs a full suite of tests before every commit.
- - [code-lts/doctum](https://github.com/code-lts/doctum) 5.6.0 generates the [API docs](https://s9e.github.io/TextFormatter/api/).
- - Scrutinizer is used for code tracking.
+- Aucune sandbox supplémentaire n'est ajoutée au rendu live, afin de ne pas fausser le comportement par défaut.
+- Le formulaire utilise POST, pratique pour les longues URLs Falstad.
+- Le labo limite seulement l'entrée à 1 MiB pour éviter de geler la page de debug.
+- `MEDIAEMBED_THEME` peut être testé avec `default`, `light` ou `dark`.
