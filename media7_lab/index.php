@@ -2,6 +2,14 @@
 
 /**
  * MEDIA7 LAB — s9e/TextFormatter default MediaPack test harness
+ *
+ * Put this folder directly inside the taxt_fomata repository:
+ *   taxt_fomata/
+ *     src/
+ *     media7_lab/
+ *       index.php
+ *
+ * No Composer install is required for this lab: it autoloads the repository's src/ tree.
  */
 
 $repoRoot = dirname(__DIR__);
@@ -12,6 +20,7 @@ spl_autoload_register(static function (string $class) use ($srcRoot): void {
     if (!str_starts_with($class, $prefix)) {
         return;
     }
+
     $relative = substr($class, strlen($prefix));
     $file = $srcRoot . '/' . str_replace('\\', '/', $relative) . '.php';
     if (is_file($file)) {
@@ -20,13 +29,34 @@ spl_autoload_register(static function (string $class) use ($srcRoot): void {
 });
 
 $providers = [
-    'prezi' => ['label' => 'Prezi', 'domains' => ['prezi.com']],
-    'codepen' => ['label' => 'CodePen', 'domains' => ['codepen.io']],
-    'jsfiddle' => ['label' => 'JSFiddle', 'domains' => ['jsfiddle.net']],
-    'googlesheets' => ['label' => 'Google Sheets', 'domains' => ['docs.google.com']],
-    'falstad' => ['label' => 'Falstad / CircuitJS', 'domains' => ['falstad.com']],
-    'gist' => ['label' => 'GitHub Gist', 'domains' => ['gist.github.com']],
-    'medium' => ['label' => 'Medium', 'domains' => ['medium.com']],
+    'prezi' => [
+        'label' => 'Prezi',
+        'domains' => ['prezi.com'],
+    ],
+    'codepen' => [
+        'label' => 'CodePen',
+        'domains' => ['codepen.io'],
+    ],
+    'jsfiddle' => [
+        'label' => 'JSFiddle',
+        'domains' => ['jsfiddle.net'],
+    ],
+    'googlesheets' => [
+        'label' => 'Google Sheets',
+        'domains' => ['docs.google.com'],
+    ],
+    'falstad' => [
+        'label' => 'Falstad / CircuitJS',
+        'domains' => ['falstad.com'],
+    ],
+    'gist' => [
+        'label' => 'GitHub Gist',
+        'domains' => ['gist.github.com'],
+    ],
+    'medium' => [
+        'label' => 'Medium',
+        'domains' => ['medium.com'],
+    ],
 ];
 
 function h(?string $value): string
@@ -43,6 +73,7 @@ function hostMatches(string $host, string $domain): bool
 
 function extractFirstUrl(string $input): ?string
 {
+    // Only used for the 7-domain gate. The original input is still passed unchanged to s9e.
     if (preg_match('~https?://[^\\s\\[\\]<>"\']+~i', $input, $m)) {
         return $m[0];
     }
@@ -95,6 +126,7 @@ function extractIframes(string $html): array
     if (!preg_match_all('~<iframe\\b[^>]*>~i', $html, $matches)) {
         return $iframes;
     }
+
     foreach ($matches[0] as $tag) {
         $row = ['src' => '', 'media' => ''];
         if (preg_match('~\\bsrc="([^"]*)"~i', $tag, $m)) {
@@ -135,9 +167,9 @@ $iframes = [];
 
 if ($input !== '') {
     if (strlen($input) > 1024 * 1024) {
-        $error = 'Entrée refusée par le labo: maximum 1 MiB.';
+        $error = 'Entrée refusée par le labo: maximum 1 MiB pour éviter de bloquer la page de debug.';
     } elseif (!is_dir($srcRoot)) {
-        $error = 'Le dossier src/ du repo s9e est introuvable.';
+        $error = 'Le dossier src/ du repo s9e est introuvable. Place media7_lab directement dans la racine de taxt_fomata.';
     } else {
         $firstUrl = extractFirstUrl($input);
         if ($firstUrl === null) {
@@ -146,12 +178,16 @@ if ($input !== '') {
             $parts = @parse_url($firstUrl);
             $host = is_array($parts) ? strtolower((string) ($parts['host'] ?? '')) : '';
             $expectedProvider = inferProviderFromHost($host, $providers);
+
             if ($expectedProvider === null) {
                 $error = 'Ce labo n’autorise que les 7 domaines testés.';
             } else {
                 try {
+                    // IMPORTANT: original input is passed to the actual precompiled default s9e MediaPack.
+                    // No URL decode/re-encode or regex recreation happens in this lab.
                     $xml = \s9e\TextFormatter\Bundles\MediaPack::parse($input);
                     [$detectedProvider, $capturedAttributes] = detectMediaFromXml($xml, $providers);
+
                     $params = [];
                     if ($theme !== 'default') {
                         $params['MEDIAEMBED_THEME'] = $theme;
@@ -166,69 +202,153 @@ if ($input !== '') {
     }
 }
 
+$status = 'idle';
+if ($error !== null) {
+    $status = 'error';
+} elseif ($input !== '' && $detectedProvider !== null) {
+    $status = 'match';
+} elseif ($input !== '') {
+    $status = 'nomatch';
+}
+
 ?><!doctype html>
 <html lang="fr">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MEDIA7 LAB</title>
+<!-- Makes protocol-relative iframe URLs behave like they would on an HTTPS forum. -->
+<base href="https://media7-lab.invalid/">
+<title>MEDIA7 LAB — s9e default parser</title>
 <style>
-body{font-family:system-ui,sans-serif;background:#0c0d10;color:#ececf1;margin:0}.wrap{max-width:1200px;margin:auto;padding:24px}.card{background:#15171c;border:1px solid #2d3038;border-radius:12px;padding:16px;margin-bottom:16px}textarea{width:100%;min-height:130px;background:#0d0f13;color:#fff;border:1px solid #3a3e47;border-radius:8px;padding:10px;font-family:monospace;box-sizing:border-box}button,select{padding:9px 12px;margin:8px 6px 0 0}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.provider{background:#101217;border:1px solid #2c2f36;border-radius:8px;padding:10px}.code{white-space:pre-wrap;overflow-wrap:anywhere;background:#090b0e;border:1px solid #282b31;border-radius:8px;padding:10px;max-height:360px;overflow:auto;font-family:monospace;font-size:12px}.result{background:white;color:#111;padding:10px;border-radius:8px;overflow:auto}.error{color:#ffb7bd;background:#2b1518;padding:10px;border-radius:8px;margin-top:10px}table{width:100%;border-collapse:collapse}td,th{border-bottom:1px solid #2c2f36;padding:7px;text-align:left;vertical-align:top}@media(max-width:800px){.grid{grid-template-columns:1fr}}
+:root{font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color-scheme:dark;background:#0c0d10;color:#ececf1}*{box-sizing:border-box}body{margin:0;background:#0c0d10;color:#ececf1}.wrap{max-width:1380px;margin:0 auto;padding:28px}.top{display:flex;gap:18px;align-items:flex-start;justify-content:space-between;margin-bottom:22px}.title h1{font-size:26px;margin:0 0 7px}.title p{margin:0;color:#a8abb4;max-width:850px;line-height:1.5}.badge{display:inline-flex;align-items:center;border:1px solid #343741;border-radius:999px;padding:7px 10px;font-size:12px;color:#cdd0d9;background:#15171d}.grid{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(360px,.9fr);gap:18px}.card{background:#14161b;border:1px solid #292c34;border-radius:14px;padding:18px;box-shadow:0 12px 34px rgba(0,0,0,.16)}h2{font-size:16px;margin:0 0 12px}label{font-size:13px;color:#c4c7d0}.input{width:100%;min-height:128px;margin-top:8px;padding:12px 13px;background:#0e1014;border:1px solid #343842;border-radius:10px;color:#f3f3f5;font:13px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace;resize:vertical}.controls{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:12px}.controls select,.controls button{border:1px solid #3a3e48;background:#1c1f26;color:#f2f2f4;border-radius:9px;padding:9px 11px}.controls button{cursor:pointer;font-weight:650;background:#eeeeef;color:#111217;border-color:#eeeeef}.check{display:flex;align-items:center;gap:7px}.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:14px}.metric{background:#0f1116;border:1px solid #282b33;border-radius:10px;padding:10px}.metric b{display:block;font-size:12px;color:#8f94a0;margin-bottom:4px}.metric span{font-size:13px;overflow-wrap:anywhere}.ok{color:#81d89b}.bad{color:#ff8d8d}.muted{color:#969aa5}.warn{color:#f0c978}.providers{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.provider{border:1px solid #2b2e36;border-radius:10px;padding:10px;background:#101217}.provider strong{font-size:13px}.provider small{display:block;color:#8f939d;margin-top:3px}.provider button{margin-top:8px;border:1px solid #3b3f48;background:#1b1e24;color:#ddd;border-radius:7px;padding:6px 8px;cursor:pointer;font-size:11px}.section{margin-top:18px}.code{white-space:pre-wrap;overflow-wrap:anywhere;background:#0b0d11;border:1px solid #272a31;border-radius:10px;padding:12px;max-height:320px;overflow:auto;font:12px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace;color:#d7d9df}.result{background:white;color:#111;border-radius:10px;padding:10px;min-height:120px;overflow:auto}.error{background:#2b1518;border:1px solid #633138;color:#ffb7bd;border-radius:10px;padding:11px;margin-top:12px}.nomatch{background:#292312;border:1px solid #65552c;color:#f5d98c;border-radius:10px;padding:11px;margin-top:12px}.attrs{width:100%;border-collapse:collapse;font-size:12px}.attrs th,.attrs td{text-align:left;border-bottom:1px solid #2b2e35;padding:8px;vertical-align:top}.attrs th{color:#9499a5;font-weight:600}.attrs td{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;overflow-wrap:anywhere}.note{font-size:12px;color:#9297a2;line-height:1.5;margin-top:10px}details{border:1px solid #292c34;border-radius:10px;margin-top:8px;background:#101217}summary{cursor:pointer;padding:9px 10px;font-size:12px;color:#cfd1d7}details .code{border:0;border-top:1px solid #292c34;border-radius:0;margin:0;max-height:220px}.full{grid-column:1/-1}@media(max-width:900px){.grid{grid-template-columns:1fr}.metrics{grid-template-columns:1fr 1fr}.providers{grid-template-columns:1fr}.wrap{padding:16px}.top{flex-direction:column}}
 </style>
 </head>
-<body><div class="wrap">
-<h1>MEDIA7 LAB</h1>
-<p>Parser réel <code>s9e\TextFormatter\Bundles\MediaPack</code> pour 7 providers.</p>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div class="title">
+      <h1>MEDIA7 LAB</h1>
+      <p>Testeur du <strong>MediaPack s9e par défaut</strong> pour Prezi, CodePen, JSFiddle, Google Sheets, Falstad/CircuitJS, GitHub Gist et Medium. L’entrée originale est donnée directement au parser du repo.</p>
+    </div>
+    <div class="badge">backend: s9e\TextFormatter\Bundles\MediaPack</div>
+  </div>
 
-<div class="card">
-<form method="post">
-<input type="hidden" name="submitted" value="1">
-<label>URL ou BBCode média :</label>
-<textarea id="input" name="input" spellcheck="false"><?= h($input) ?></textarea>
-<br>
-<button type="submit">Passer dans s9e</button>
-<select name="theme">
-<option value="default"<?= $theme==='default'?' selected':'' ?>>default</option>
-<option value="light"<?= $theme==='light'?' selected':'' ?>>light</option>
-<option value="dark"<?= $theme==='dark'?' selected':'' ?>>dark</option>
-</select>
-<label><input type="checkbox" name="load_external" value="1"<?= $loadExternal?' checked':'' ?>> charger l’embed externe</label>
-</form>
-<?php if ($error !== null): ?><div class="error"><?= h($error) ?></div><?php endif; ?>
-</div>
+  <div class="grid">
+    <section class="card">
+      <h2>1. Entrée brute</h2>
+      <form method="post" action="http://<?= h($_SERVER['HTTP_HOST'] ?? '127.0.0.1:8080') ?><?= h($_SERVER['PHP_SELF'] ?? '/index.php') ?>">
+        <input type="hidden" name="submitted" value="1">
+        <label>Colle exactement l’URL ou le `[media]...[/media]` que tu veux tester.</label>
+        <textarea id="input" class="input" name="input" spellcheck="false" placeholder="https://www.falstad.com/circuit/circuitjs.html?ctz=..."><?= h($input) ?></textarea>
+        <div class="controls">
+          <button type="submit">Passer dans s9e</button>
+          <label>Thème
+            <select name="theme">
+              <option value="default"<?= $theme === 'default' ? ' selected' : '' ?>>default</option>
+              <option value="light"<?= $theme === 'light' ? ' selected' : '' ?>>light</option>
+              <option value="dark"<?= $theme === 'dark' ? ' selected' : '' ?>>dark</option>
+            </select>
+          </label>
+          <label class="check"><input type="checkbox" name="load_external" value="1"<?= $loadExternal ? ' checked' : '' ?>> charger l’embed externe</label>
+        </div>
+      </form>
 
-<div class="card">
-<h2>Exemples des 7 providers</h2>
-<div class="grid">
-<?php foreach ($providers as $id => $provider): ?>
-<div class="provider">
-<strong><?= h($provider['label']) ?></strong><br><small><?= h(implode(', ', $provider['domains'])) ?></small><br>
-<?php if (!empty($examples[$id])): ?><button type="button" data-example="<?= h($examples[$id][0]) ?>" onclick="document.getElementById('input').value=this.dataset.example">charger exemple</button><?php endif; ?>
-</div>
-<?php endforeach; ?>
-</div>
-</div>
+      <?php if ($error !== null): ?>
+        <div class="error"><strong>Erreur :</strong> <?= h($error) ?></div>
+      <?php elseif ($status === 'nomatch'): ?>
+        <div class="nomatch">Le domaine est dans les 7 autorisés, mais le parser s9e n’a produit aucun tag média correspondant.</div>
+      <?php endif; ?>
 
-<?php if ($input !== ''): ?>
-<div class="card">
-<h2>Résultat</h2>
-<table>
-<tr><th>Host</th><td><?= h($host ?: '—') ?></td></tr>
-<tr><th>Provider attendu</th><td><?= h($expectedProvider ?? '—') ?></td></tr>
-<tr><th>Détecté par s9e</th><td><?= h($detectedProvider ?? '—') ?></td></tr>
-</table>
-</div>
+      <div class="metrics">
+        <div class="metric"><b>Host</b><span><?= h($host ?: '—') ?></span></div>
+        <div class="metric"><b>Route attendue</b><span><?= h($expectedProvider ? $providers[$expectedProvider]['label'] : '—') ?></span></div>
+        <div class="metric"><b>Détecté par s9e</b><span class="<?= $detectedProvider ? 'ok' : 'muted' ?>"><?= h($detectedProvider ? $providers[$detectedProvider]['label'] : '—') ?></span></div>
+        <div class="metric"><b>Taille entrée</b><span><?= number_format(strlen($input), 0, ',', ' ') ?> octets</span></div>
+      </div>
+    </section>
 
-<div class="card"><h2>Attributs capturés</h2>
-<?php if ($capturedAttributes): ?><table><?php foreach ($capturedAttributes as $k=>$v): ?><tr><th><?= h((string)$k) ?></th><td><code><?= h((string)$v) ?></code></td></tr><?php endforeach; ?></table><?php else: ?><p>—</p><?php endif; ?>
-</div>
+    <aside class="card">
+      <h2>2. Les 7 définitions du repo</h2>
+      <div class="providers">
+        <?php foreach ($providers as $id => $provider): ?>
+          <div class="provider">
+            <strong><?= h($provider['label']) ?></strong>
+            <small><?= h(implode(', ', $provider['domains'])) ?></small>
+            <?php if (!empty($examples[$id])): ?>
+              <button type="button" data-example="<?= h($examples[$id][0]) ?>" onclick="loadExample(this.dataset.example)">charger exemple</button>
+            <?php endif; ?>
+          </div>
+        <?php endforeach; ?>
+      </div>
+      <p class="note">Les exemples et définitions ci-dessous sont lus directement depuis <code>src/Plugins/MediaEmbed/Configurator/sites/*.xml</code> du repo local.</p>
+      <?php foreach ($providers as $id => $provider): ?>
+        <details>
+          <summary><?= h($provider['label']) ?> — définition XML</summary>
+          <div class="code"><?= h($definitions[$id] ?: '[fichier introuvable]') ?></div>
+        </details>
+      <?php endforeach; ?>
+    </aside>
 
-<div class="card"><h2>XML intermédiaire s9e</h2><div class="code"><?= h($xml) ?></div></div>
-<div class="card"><h2>HTML final</h2><div class="code"><?= h($html) ?></div></div>
-<div class="card"><h2>Iframe(s) finale(s)</h2>
-<?php if ($iframes): ?><table><tr><th>media</th><th>src</th></tr><?php foreach ($iframes as $frame): ?><tr><td><?= h($frame['media']) ?></td><td><code><?= h($frame['src']) ?></code></td></tr><?php endforeach; ?></table><?php else: ?><p>—</p><?php endif; ?>
-</div>
-<?php if ($loadExternal && $html !== ''): ?><div class="card"><h2>Rendu externe</h2><div class="result"><?= $html ?></div></div><?php endif; ?>
-<?php endif; ?>
+    <?php if ($input !== '' && $error === null): ?>
+      <section class="card">
+        <h2>3. Captures du parser</h2>
+        <?php if ($capturedAttributes): ?>
+          <table class="attrs">
+            <thead><tr><th>Attribut</th><th>Valeur capturée</th></tr></thead>
+            <tbody>
+            <?php foreach ($capturedAttributes as $k => $v): ?>
+              <tr><td><?= h((string) $k) ?></td><td><?= h((string) $v) ?></td></tr>
+            <?php endforeach; ?>
+            </tbody>
+          </table>
+        <?php else: ?>
+          <p class="muted">Aucun attribut de l’un des 7 tags n’a été capturé.</p>
+        <?php endif; ?>
+        <div class="section">
+          <h2>XML intermédiaire</h2>
+          <div class="code"><?= h($xml) ?></div>
+        </div>
+      </section>
 
-</div></body></html>
+      <section class="card">
+        <h2>4. Renderer s9e</h2>
+        <?php if ($iframes): ?>
+          <table class="attrs">
+            <thead><tr><th>#</th><th>data-s9e-mediaembed</th><th>src final</th></tr></thead>
+            <tbody>
+            <?php foreach ($iframes as $i => $frame): ?>
+              <tr><td><?= $i + 1 ?></td><td><?= h($frame['media'] ?: '—') ?></td><td><?= h($frame['src']) ?></td></tr>
+            <?php endforeach; ?>
+            </tbody>
+          </table>
+        <?php else: ?>
+          <p class="muted">Aucun iframe produit.</p>
+        <?php endif; ?>
+        <div class="section">
+          <h2>HTML final exact</h2>
+          <div class="code"><?= h($html) ?></div>
+        </div>
+      </section>
+
+      <section class="card full">
+        <h2>5. Résultat live</h2>
+        <p class="note">Le labo n’ajoute pas de sandbox ni de paramètres au HTML de s9e. Le <code>&lt;base href="https://…"&gt;</code> de cette page sert uniquement à faire résoudre les URLs <code>//provider/…</code> en HTTPS comme sur un forum HTTPS.</p>
+        <?php if ($loadExternal): ?>
+          <div class="result"><?= $html ?></div>
+        <?php else: ?>
+          <div class="code">Chargement externe désactivé. Le parser et le renderer ont quand même été exécutés.</div>
+        <?php endif; ?>
+      </section>
+    <?php endif; ?>
+  </div>
+</div>
+<script>
+function loadExample(value){
+  const box=document.getElementById('input');
+  box.value=value;
+  box.focus();
+  box.scrollIntoView({behavior:'smooth',block:'center'});
+}
+</script>
+</body>
+</html>
