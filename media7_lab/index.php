@@ -2,14 +2,6 @@
 
 /**
  * MEDIA7 LAB — s9e/TextFormatter default MediaPack test harness
- *
- * Put this folder directly inside the taxt_fomata repository:
- *   taxt_fomata/
- *     src/
- *     media7_lab/
- *       index.php
- *
- * No Composer install is required for this lab: it autoloads the repository's src/ tree.
  */
 
 $repoRoot = dirname(__DIR__);
@@ -20,7 +12,6 @@ spl_autoload_register(static function (string $class) use ($srcRoot): void {
     if (!str_starts_with($class, $prefix)) {
         return;
     }
-
     $relative = substr($class, strlen($prefix));
     $file = $srcRoot . '/' . str_replace('\\', '/', $relative) . '.php';
     if (is_file($file)) {
@@ -29,34 +20,13 @@ spl_autoload_register(static function (string $class) use ($srcRoot): void {
 });
 
 $providers = [
-    'prezi' => [
-        'label' => 'Prezi',
-        'domains' => ['prezi.com'],
-    ],
-    'codepen' => [
-        'label' => 'CodePen',
-        'domains' => ['codepen.io'],
-    ],
-    'jsfiddle' => [
-        'label' => 'JSFiddle',
-        'domains' => ['jsfiddle.net'],
-    ],
-    'googlesheets' => [
-        'label' => 'Google Sheets',
-        'domains' => ['docs.google.com'],
-    ],
-    'falstad' => [
-        'label' => 'Falstad / CircuitJS',
-        'domains' => ['falstad.com'],
-    ],
-    'gist' => [
-        'label' => 'GitHub Gist',
-        'domains' => ['gist.github.com'],
-    ],
-    'medium' => [
-        'label' => 'Medium',
-        'domains' => ['medium.com'],
-    ],
+    'prezi'        => ['label' => 'Prezi',              'domains' => ['prezi.com']],
+    'codepen'      => ['label' => 'CodePen',            'domains' => ['codepen.io']],
+    'jsfiddle'     => ['label' => 'JSFiddle',           'domains' => ['jsfiddle.net']],
+    'googlesheets' => ['label' => 'Google Sheets',      'domains' => ['docs.google.com']],
+    'falstad'      => ['label' => 'Falstad / CircuitJS','domains' => ['falstad.com']],
+    'gist'         => ['label' => 'GitHub Gist',        'domains' => ['gist.github.com']],
+    'medium'       => ['label' => 'Medium',             'domains' => ['medium.com']],
 ];
 
 function h(?string $value): string
@@ -73,7 +43,6 @@ function hostMatches(string $host, string $domain): bool
 
 function extractFirstUrl(string $input): ?string
 {
-    // Only used for the 7-domain gate. The original input is still passed unchanged to s9e.
     if (preg_match('~https?://[^\\s\\[\\]<>"\']+~i', $input, $m)) {
         return $m[0];
     }
@@ -126,7 +95,6 @@ function extractIframes(string $html): array
     if (!preg_match_all('~<iframe\\b[^>]*>~i', $html, $matches)) {
         return $iframes;
     }
-
     foreach ($matches[0] as $tag) {
         $row = ['src' => '', 'media' => ''];
         if (preg_match('~\\bsrc="([^"]*)"~i', $tag, $m)) {
@@ -178,16 +146,12 @@ if ($input !== '') {
             $parts = @parse_url($firstUrl);
             $host = is_array($parts) ? strtolower((string) ($parts['host'] ?? '')) : '';
             $expectedProvider = inferProviderFromHost($host, $providers);
-
             if ($expectedProvider === null) {
                 $error = 'Ce labo n’autorise que les 7 domaines testés.';
             } else {
                 try {
-                    // IMPORTANT: original input is passed to the actual precompiled default s9e MediaPack.
-                    // No URL decode/re-encode or regex recreation happens in this lab.
                     $xml = \s9e\TextFormatter\Bundles\MediaPack::parse($input);
                     [$detectedProvider, $capturedAttributes] = detectMediaFromXml($xml, $providers);
-
                     $params = [];
                     if ($theme !== 'default') {
                         $params['MEDIAEMBED_THEME'] = $theme;
@@ -211,16 +175,57 @@ if ($error !== null) {
     $status = 'nomatch';
 }
 
+$summary = '';
+if ($input !== '') {
+    $lines = [];
+    $lines[] = '=== MEDIA7 LAB RESULT ===';
+    $lines[] = 'INPUT:';
+    $lines[] = $input;
+    $lines[] = '';
+    $lines[] = 'HOST: ' . ($host ?: '—');
+    $lines[] = 'EXPECTED: ' . ($expectedProvider ? $providers[$expectedProvider]['label'] : '—');
+    $lines[] = 'DETECTED: ' . ($detectedProvider ? $providers[$detectedProvider]['label'] : '—');
+    $lines[] = 'STATUS: ' . $status;
+    if ($error !== null) {
+        $lines[] = 'ERROR: ' . $error;
+    }
+    $lines[] = '';
+    $lines[] = 'CAPTURED ATTRIBUTES:';
+    if ($capturedAttributes) {
+        foreach ($capturedAttributes as $k => $v) {
+            $lines[] = $k . '=' . $v;
+        }
+    } else {
+        $lines[] = '—';
+    }
+    $lines[] = '';
+    $lines[] = 'FINAL IFRAME SRC:';
+    if ($iframes) {
+        foreach ($iframes as $i => $frame) {
+            $lines[] = '#' . ($i + 1) . ' media=' . ($frame['media'] ?: '—');
+            $lines[] = $frame['src'];
+        }
+    } else {
+        $lines[] = '—';
+    }
+    $lines[] = '';
+    $lines[] = 'XML:';
+    $lines[] = $xml ?: '—';
+    $lines[] = '';
+    $lines[] = 'HTML:';
+    $lines[] = $html ?: '—';
+    $summary = implode("\n", $lines);
+}
+
 ?><!doctype html>
 <html lang="fr">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<!-- Makes protocol-relative iframe URLs behave like they would on an HTTPS forum. -->
 <base href="https://media7-lab.invalid/">
 <title>MEDIA7 LAB — s9e default parser</title>
 <style>
-:root{font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color-scheme:dark;background:#0c0d10;color:#ececf1}*{box-sizing:border-box}body{margin:0;background:#0c0d10;color:#ececf1}.wrap{max-width:1380px;margin:0 auto;padding:28px}.top{display:flex;gap:18px;align-items:flex-start;justify-content:space-between;margin-bottom:22px}.title h1{font-size:26px;margin:0 0 7px}.title p{margin:0;color:#a8abb4;max-width:850px;line-height:1.5}.badge{display:inline-flex;align-items:center;border:1px solid #343741;border-radius:999px;padding:7px 10px;font-size:12px;color:#cdd0d9;background:#15171d}.grid{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(360px,.9fr);gap:18px}.card{background:#14161b;border:1px solid #292c34;border-radius:14px;padding:18px;box-shadow:0 12px 34px rgba(0,0,0,.16)}h2{font-size:16px;margin:0 0 12px}label{font-size:13px;color:#c4c7d0}.input{width:100%;min-height:128px;margin-top:8px;padding:12px 13px;background:#0e1014;border:1px solid #343842;border-radius:10px;color:#f3f3f5;font:13px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace;resize:vertical}.controls{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:12px}.controls select,.controls button{border:1px solid #3a3e48;background:#1c1f26;color:#f2f2f4;border-radius:9px;padding:9px 11px}.controls button{cursor:pointer;font-weight:650;background:#eeeeef;color:#111217;border-color:#eeeeef}.check{display:flex;align-items:center;gap:7px}.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:14px}.metric{background:#0f1116;border:1px solid #282b33;border-radius:10px;padding:10px}.metric b{display:block;font-size:12px;color:#8f94a0;margin-bottom:4px}.metric span{font-size:13px;overflow-wrap:anywhere}.ok{color:#81d89b}.bad{color:#ff8d8d}.muted{color:#969aa5}.warn{color:#f0c978}.providers{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.provider{border:1px solid #2b2e36;border-radius:10px;padding:10px;background:#101217}.provider strong{font-size:13px}.provider small{display:block;color:#8f939d;margin-top:3px}.provider button{margin-top:8px;border:1px solid #3b3f48;background:#1b1e24;color:#ddd;border-radius:7px;padding:6px 8px;cursor:pointer;font-size:11px}.section{margin-top:18px}.code{white-space:pre-wrap;overflow-wrap:anywhere;background:#0b0d11;border:1px solid #272a31;border-radius:10px;padding:12px;max-height:320px;overflow:auto;font:12px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace;color:#d7d9df}.result{background:white;color:#111;border-radius:10px;padding:10px;min-height:120px;overflow:auto}.error{background:#2b1518;border:1px solid #633138;color:#ffb7bd;border-radius:10px;padding:11px;margin-top:12px}.nomatch{background:#292312;border:1px solid #65552c;color:#f5d98c;border-radius:10px;padding:11px;margin-top:12px}.attrs{width:100%;border-collapse:collapse;font-size:12px}.attrs th,.attrs td{text-align:left;border-bottom:1px solid #2b2e35;padding:8px;vertical-align:top}.attrs th{color:#9499a5;font-weight:600}.attrs td{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;overflow-wrap:anywhere}.note{font-size:12px;color:#9297a2;line-height:1.5;margin-top:10px}details{border:1px solid #292c34;border-radius:10px;margin-top:8px;background:#101217}summary{cursor:pointer;padding:9px 10px;font-size:12px;color:#cfd1d7}details .code{border:0;border-top:1px solid #292c34;border-radius:0;margin:0;max-height:220px}.full{grid-column:1/-1}@media(max-width:900px){.grid{grid-template-columns:1fr}.metrics{grid-template-columns:1fr 1fr}.providers{grid-template-columns:1fr}.wrap{padding:16px}.top{flex-direction:column}}
+:root{font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color-scheme:dark;background:#0c0d10;color:#ececf1}*{box-sizing:border-box}body{margin:0;background:#0c0d10;color:#ececf1}.wrap{max-width:1380px;margin:0 auto;padding:28px}.top{display:flex;gap:18px;align-items:flex-start;justify-content:space-between;margin-bottom:22px}.title h1{font-size:26px;margin:0 0 7px}.title p{margin:0;color:#a8abb4;max-width:850px;line-height:1.5}.badge{display:inline-flex;align-items:center;border:1px solid #343741;border-radius:999px;padding:7px 10px;font-size:12px;color:#cdd0d9;background:#15171d}.grid{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(360px,.9fr);gap:18px}.card{background:#14161b;border:1px solid #292c34;border-radius:14px;padding:18px;box-shadow:0 12px 34px rgba(0,0,0,.16)}h2{font-size:16px;margin:0 0 12px}label{font-size:13px;color:#c4c7d0}.input,.copybox{width:100%;min-height:128px;margin-top:8px;padding:12px 13px;background:#0e1014;border:1px solid #343842;border-radius:10px;color:#f3f3f5;font:13px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace;resize:vertical}.copybox{min-height:280px}.controls{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:12px}.controls select,.controls button,.copybtn{border:1px solid #3a3e48;background:#1c1f26;color:#f2f2f4;border-radius:9px;padding:9px 11px}.controls button,.copybtn{cursor:pointer;font-weight:650;background:#eeeeef;color:#111217;border-color:#eeeeef}.copybtn.done{background:#b9f5c9}.check{display:flex;align-items:center;gap:7px}.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:14px}.metric{background:#0f1116;border:1px solid #282b33;border-radius:10px;padding:10px}.metric b{display:block;font-size:12px;color:#8f94a0;margin-bottom:4px}.metric span{font-size:13px;overflow-wrap:anywhere}.ok{color:#81d89b}.muted{color:#969aa5}.providers{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.provider{border:1px solid #2b2e36;border-radius:10px;padding:10px;background:#101217}.provider strong{font-size:13px}.provider small{display:block;color:#8f939d;margin-top:3px}.provider button{margin-top:8px;border:1px solid #3b3f48;background:#1b1e24;color:#ddd;border-radius:7px;padding:6px 8px;cursor:pointer;font-size:11px}.section{margin-top:18px}.code{white-space:pre-wrap;overflow-wrap:anywhere;background:#0b0d11;border:1px solid #272a31;border-radius:10px;padding:12px;max-height:320px;overflow:auto;font:12px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace;color:#d7d9df}.result{background:white;color:#111;border-radius:10px;padding:10px;min-height:120px;overflow:auto}.error{background:#2b1518;border:1px solid #633138;color:#ffb7bd;border-radius:10px;padding:11px;margin-top:12px}.nomatch{background:#292312;border:1px solid #65552c;color:#f5d98c;border-radius:10px;padding:11px;margin-top:12px}.attrs{width:100%;border-collapse:collapse;font-size:12px}.attrs th,.attrs td{text-align:left;border-bottom:1px solid #2b2e35;padding:8px;vertical-align:top}.attrs th{color:#9499a5;font-weight:600}.attrs td{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;overflow-wrap:anywhere}.note{font-size:12px;color:#9297a2;line-height:1.5;margin-top:10px}details{border:1px solid #292c34;border-radius:10px;margin-top:8px;background:#101217}summary{cursor:pointer;padding:9px 10px;font-size:12px;color:#cfd1d7}details .code{border:0;border-top:1px solid #292c34;border-radius:0;margin:0;max-height:220px}.full{grid-column:1/-1}@media(max-width:900px){.grid{grid-template-columns:1fr}.metrics{grid-template-columns:1fr 1fr}.providers{grid-template-columns:1fr}.wrap{padding:16px}.top{flex-direction:column}}
 </style>
 </head>
 <body>
@@ -289,9 +294,18 @@ if ($error !== null) {
       <?php endforeach; ?>
     </aside>
 
+    <?php if ($input !== ''): ?>
+      <section class="card full">
+        <h2>3. Résumé copiable</h2>
+        <p class="note">Ce bloc contient l’entrée, les attributs capturés, le <code>src</code> final, le XML et le HTML. Copie-le et colle-le directement dans le chat.</p>
+        <textarea id="copySummary" class="copybox" readonly><?= h($summary) ?></textarea>
+        <div class="controls"><button id="copyBtn" class="copybtn" type="button" onclick="copySummary()">Copier le résumé</button></div>
+      </section>
+    <?php endif; ?>
+
     <?php if ($input !== '' && $error === null): ?>
       <section class="card">
-        <h2>3. Captures du parser</h2>
+        <h2>4. Captures du parser</h2>
         <?php if ($capturedAttributes): ?>
           <table class="attrs">
             <thead><tr><th>Attribut</th><th>Valeur capturée</th></tr></thead>
@@ -311,7 +325,7 @@ if ($error !== null) {
       </section>
 
       <section class="card">
-        <h2>4. Renderer s9e</h2>
+        <h2>5. Renderer s9e</h2>
         <?php if ($iframes): ?>
           <table class="attrs">
             <thead><tr><th>#</th><th>data-s9e-mediaembed</th><th>src final</th></tr></thead>
@@ -331,8 +345,8 @@ if ($error !== null) {
       </section>
 
       <section class="card full">
-        <h2>5. Résultat live</h2>
-        <p class="note">Le labo n’ajoute pas de sandbox ni de paramètres au HTML de s9e. Le <code>&lt;base href="https://…"&gt;</code> de cette page sert uniquement à faire résoudre les URLs <code>//provider/…</code> en HTTPS comme sur un forum HTTPS.</p>
+        <h2>6. Résultat live</h2>
+        <p class="note">Le labo n’ajoute pas de sandbox ni de paramètres au HTML de s9e. Le <code>&lt;base href="https://…"&gt;</code> sert uniquement à résoudre les URLs <code>//provider/…</code> en HTTPS.</p>
         <?php if ($loadExternal): ?>
           <div class="result"><?= $html ?></div>
         <?php else: ?>
@@ -348,6 +362,24 @@ function loadExample(value){
   box.value=value;
   box.focus();
   box.scrollIntoView({behavior:'smooth',block:'center'});
+}
+async function copySummary(){
+  const box=document.getElementById('copySummary');
+  const btn=document.getElementById('copyBtn');
+  if(!box) return;
+  try{
+    await navigator.clipboard.writeText(box.value);
+  }catch(e){
+    box.focus();
+    box.select();
+    document.execCommand('copy');
+  }
+  if(btn){
+    const old=btn.textContent;
+    btn.textContent='Copié';
+    btn.classList.add('done');
+    setTimeout(()=>{btn.textContent=old;btn.classList.remove('done')},1200);
+  }
 }
 </script>
 </body>
